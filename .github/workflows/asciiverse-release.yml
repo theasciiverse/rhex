@@ -51,7 +51,7 @@ jobs:
             strip target/release/rhex'
           sudo chown -R "$(id -u):$(id -g)" target
           file target/release/$BIN
-          file target/release/$BIN | grep -q 'statically linked'
+          file target/release/$BIN | grep -q -E 'statically linked|static-pie linked'
 
       - name: Package for av
         run: |
