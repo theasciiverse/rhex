@@ -47,12 +47,12 @@ pub enum AutoMoveAction {
     Blocked, // Blocked by something
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum GoToType {
     Stairs,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum AutoMoveType {
     Explore,
     GoTo(GoToType),

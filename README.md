@@ -23,8 +23,12 @@ nix run .
 
 The terminal interface uses Crossterm for input and terminal modes, and Ratatui
 for buffered rendering. You do not need an ncurses library, a terminfo database,
-or a separate `tput` program. Run from a writable directory: the game writes
-`debug.log` there. The game has no save/load support.
+or a separate `tput` program. The game has no save/load support.
+Each session writes a log to `rhex.log` in the state folder
+(`$XDG_STATE_HOME/rhex`, else `~/.local/state/rhex`, or `%LOCALAPPDATA%\rhex` on
+Windows). Set `RUST_LOG` to choose what it records: `info` for mode changes,
+levels and deaths, `debug` for every terminal event and a snapshot of the game
+each second. Without it, only errors.
 
 Press any key at the introduction, then choose a race (`a` for human).
 In either input mode, use `h`/`l` or the Left/Right arrows to turn left/right.

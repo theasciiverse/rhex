@@ -1,11 +1,8 @@
-extern crate chrono;
 extern crate hex2d;
 extern crate hex2d_dpcext as hex2dext;
 extern crate num;
 extern crate rand;
 extern crate simplemap;
-//#[macro_use]
-extern crate fern;
 extern crate fnv;
 extern crate log;
 

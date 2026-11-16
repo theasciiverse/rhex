@@ -104,7 +104,9 @@ class Game:
         self.events.append({"time": 0, "start": command, "size": [rows, cols],
                             "TERM": terminal, "seed": "entropy (transport only)"})
         self.work = tempfile.TemporaryDirectory(prefix="rhex-test-")
-        env = dict(os.environ, TERM=terminal, LANG="C.UTF-8", LC_ALL="C.UTF-8")
+        # The session log goes into the state folder: keep it in the work dir.
+        env = dict(os.environ, TERM=terminal, LANG="C.UTF-8", LC_ALL="C.UTF-8",
+                   XDG_STATE_HOME=self.work.name)
         env.update(extra_env or {})
         self.process = subprocess.Popen(
             command, stdin=self.slave, stdout=self.slave, stderr=self.slave,
@@ -296,7 +298,7 @@ def exercise(binary, race, terminal="xterm-256color"):
         game.expect("Quit. Are you sure?")
         game.send(b"y")
         game.finished(0)
-        assert os.path.isfile(os.path.join(game.work.name, "debug.log"))
+        assert os.path.isfile(os.path.join(game.work.name, "rhex", "rhex.log"))
     finally:
         game.close()
 
@@ -395,7 +397,8 @@ if len(sys.argv) > 2:
     for mode in (b"s", b"e", b"p"):
         cleanup_probe(os.path.abspath(sys.argv[2]), mode)
 with tempfile.TemporaryDirectory(prefix="rhex-test-") as work:
-    result = subprocess.run([binary], input=b"", capture_output=True, cwd=work, timeout=5)
+    result = subprocess.run([binary], input=b"", capture_output=True, cwd=work, timeout=5,
+                            env=dict(os.environ, XDG_STATE_HOME=work))
 assert result.returncode == 1
 assert b"interactive stdin and stdout terminals are required" in result.stderr
 print("PTY: races, layout/palette/Unicode, actions/arrows/modifiers/F2, help/inventory, "

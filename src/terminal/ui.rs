@@ -151,6 +151,10 @@ pub struct Ui {
     now: Instant,
     /// Stable presentation epoch; redraws and game turns never reset blink phase.
     presentation_started: Instant,
+    /// When the session log next records a snapshot of the game.
+    next_snapshot_ts: Instant,
+    /// The player's death is logged once.
+    death_logged: bool,
 }
 
 use self::Action::*;
@@ -206,6 +210,8 @@ impl Ui {
             pending_sounds: Vec::new(),
             now,
             presentation_started: now,
+            next_snapshot_ts: now,
+            death_logged: false,
         };
         ui.display_intro();
         ui.resize(size);
@@ -216,7 +222,9 @@ impl Ui {
         self.game_action_queue.clear();
         self.map_renderer.animations.clear();
         self.pending_sounds.clear();
+        log::info!("new game as {race:?}");
         self.engine.initial_spawn(race);
+        self.death_logged = false;
         let player_id = self.engine.current_location().player_id();
         self.engine_change(player_id);
         self.update_changes();
@@ -419,6 +427,14 @@ impl Ui {
         }
         let level = self.current_location().id;
         if self.animation_level != level {
+            let location = self.current_location();
+            log::info!(
+                "entered level {} ({:?}, depth {}) on turn {}",
+                level.0,
+                location.biome,
+                location.level,
+                self.engine.turn()
+            );
             self.map_renderer.animations.clear();
             self.pending_sounds.clear();
             self.animation_level = level;
@@ -447,6 +463,11 @@ impl Ui {
         }
 
         let player_id = self.current_location().player_id();
+
+        if actor_id == player_id && self.player().is_dead() && !self.death_logged {
+            self.death_logged = true;
+            log::info!("player died on turn {}", self.engine.turn());
+        }
 
         if actor_id == player_id && (self.is_automoving() || self.player().is_dead()) {
             self.next_turn_ts = self.now + Duration::from_millis(50);
@@ -560,6 +581,44 @@ impl Ui {
         if !self.too_small() {
             self.run_engine_turn();
         }
+        if self.now >= self.next_snapshot_ts && log::log_enabled!(log::Level::Debug) {
+            self.next_snapshot_ts = self.now + Duration::from_secs(1);
+            self.log_snapshot();
+        }
+    }
+
+    /// One line of the game's state for the session log.
+    fn log_snapshot(&self) {
+        let mut line = format!(
+            "snapshot mode={:?} input={} size={:?} too_small={} queued={} automoving={:?}",
+            self.mode,
+            self.input_mode,
+            self.windows.full.size(),
+            self.too_small(),
+            self.game_action_queue.len(),
+            self.automoving,
+        );
+        if self.spawned {
+            let location = self.current_location();
+            let player = self.player();
+            let _ = write!(
+                line,
+                " turn={} level={} biome={:?} depth={} pos={:?} hp={}/{} mp={}/{} sp={}/{} dead={}",
+                self.engine.turn(),
+                location.id.0,
+                location.biome,
+                location.level,
+                player.pos,
+                player.hp,
+                player.stats.base.max_hp,
+                player.mp,
+                player.stats.base.max_mp,
+                player.sp,
+                player.stats.base.max_sp,
+                player.is_dead(),
+            );
+        }
+        log::debug!("{line}");
     }
 
     /// Report whether the runner should finish.
@@ -625,6 +684,9 @@ impl Ui {
                     *ready = Some(self.now + Duration::from_millis(200));
                 }
             }
+        }
+        if self.mode != mode {
+            log::info!("mode {:?} -> {:?}", self.mode, mode);
         }
         self.mode = mode;
         self.redraw();
@@ -864,6 +926,7 @@ impl Ui {
     pub fn input_handle_key(&mut self, key: i32) {
         if Self::key_to_action_global(key).is_some() {
             self.input_mode.toggle();
+            log::info!("input mode {}", self.input_mode);
             self.redraw();
         } else {
             self.input_handle_key_mode_specific(key)

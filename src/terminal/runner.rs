@@ -35,6 +35,7 @@ impl Runner {
 
     /// Preserve simulation, input, then rendering order until exit.
     pub fn run(&mut self) -> io::Result<()> {
+        log::info!("session start, terminal {:?}", crossterm::terminal::size()?);
         while !self.ui.exited() {
             self.ui.advance(Self::screen_size()?, Instant::now());
             // Crossterm's level-triggered Unix source needs a nonzero timeout.
@@ -45,6 +46,7 @@ impl Runner {
                     let (height, width) = Self::screen_size()?;
                     event = Event::Resize(width as u16, height as u16);
                 }
+                log::debug!("input {event:?}");
                 self.ui.handle_event(event, Instant::now());
             }
             if self.ui.frame_due(Instant::now()) {
@@ -57,6 +59,7 @@ impl Runner {
                 thread::sleep(Duration::from_millis(10));
             }
         }
+        log::info!("session end");
         Ok(())
     }
 }
